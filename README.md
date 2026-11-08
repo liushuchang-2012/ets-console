@@ -52,6 +52,7 @@ node src/ets.js do 109583126 --rid 55 --time 120      # 提交（默认 100%）
 node src/ets.js do 109583126 --pct 92 --time 120      # 只要 92%
 node src/ets.js do 109583126 --dry                    # 只看不发
 node src/ets.js do --todo --time 120                  # 待做 + 逾期全刷
+node src/ets.js do <id> --points 11 --reset            # 试卷型：清空重刷，总分正好 11
 node src/ets.js time 109583126 3600                   # 只改学习时长
 ```
 

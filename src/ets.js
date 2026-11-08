@@ -756,8 +756,17 @@ async function doOne(ets, id, rid, opt) {
     const ents = Ets.paperEntities(it.struct);
     const fc = String((row && row.first_column_id) || "36");
     const total = Number((row && row.total_point) || 0) || ents.length * 2;
-    const per = ents.length ? Math.round((total / ents.length) * 100) / 100 : 0;
     const setKey = "100" + String(id);
+    if (has("reset")) {
+      const rr = await ets.api("m/set/reset-score-v2", {
+        version: "2", resource_id: String(rid), set_id: setKey, exam_id: null, homework_id: String(id),
+      });
+      const r0 = (rr.data && rr.data[0]) || {};
+      console.log("  [重置] 清空本次作答记录 → code " + r0.code);
+    }
+    // --points N：把总分定成 N（平均到每道题）；默认按满分平均
+    const want = Number(arg("points", 0)) || 0;
+    const per = ents.length ? Math.round(((want > 0 ? want : total) / ents.length) * 100) / 100 : 0;
     console.log("  [试卷型] " + ents.length + " 题，满分 " + total + "（每题 " + per + " 分），set=" + setKey + " fc=" + fc);
     if (!ents.length) console.log("  [警告] 试卷结构里没找到题目实体，先看 show 的输出");
     for (const e of ents) {
