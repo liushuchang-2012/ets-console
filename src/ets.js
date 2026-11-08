@@ -720,6 +720,7 @@ async function doOne(ets, id, rid, opt) {
   const row = await ets.homeworkRow(id);
   const metas = Ets.platItems(row);
   let submitted = 0;
+  let lastPoint = null, lastComplete = null;   // 试卷型专用：info 有缓存，用它兜底
   if (metas.length) {
     for (const meta of metas) {
       if (meta.item_type === 2 && meta.orders.length > 1) {
@@ -765,16 +766,19 @@ async function doOne(ets, id, rid, opt) {
       const b = r.body || {};
       console.log("  [提交] entity=" + e.entity_id + " → code " + r.code + " point=" + b.point +
         " complete=" + b.complete + " is_update=" + b.is_update);
-      if (r.code === 0) submitted++;
+      if (r.code === 0) { submitted++; lastPoint = b.point; lastComplete = b.complete; }
     }
   }
   if (opt.dry) { console.log("  [dry] 未提交"); return { dry: true }; }
   const rt = await ets.setTime(id, rid, opt.time);
   console.log("  [时长] 设为 " + opt.time + "s → " + JSON.stringify(rt.body || {}));
   const after = await ets.info(id, rid);
-  console.log("  [复查] " + (after.point || 0) + "/" + (after.total_point || 100) + " 分，完成度 " +
-    (after.complete || 0) + "%，时长 " + (after.use_time || 0) + "s");
-  return { ok: true, submitted, point: after.point, complete: after.complete };
+  // 试卷型的 m/homework/info 有缓存（会停在首次提交的分数），优先用最后一次提交返回的进度
+  const pvPoint = lastComplete != null ? lastPoint : after.point;
+  const pvComplete = lastComplete != null ? lastComplete : after.complete;
+  console.log("  [复查] " + (pvPoint || 0) + "/" + (after.total_point || 100) + " 分，完成度 " +
+    (pvComplete || 0) + "%，时长 " + (after.use_time || 0) + "s");
+  return { ok: true, submitted, point: pvPoint, complete: pvComplete };
 }
 
 async function main() {
