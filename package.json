@@ -1,0 +1,15 @@
+{
+  "name": "ets-console",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local console for the E-Tingshuo (讯飞 E 听说) PC client: list homeworks, inspect, submit, adjust study time.",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "bin": { "ets": "src/ets.js" },
+  "scripts": {
+    "start": "node src/ets.js status",
+    "doctor": "node src/ets.js doctor",
+    "web": "node webui/server.js --open",
+    "web:mock": "node -e \"process.env.ETS_MOCK='1';require('./webui/server.js')\""
+  }
+}
