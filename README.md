@@ -1,5 +1,7 @@
 # ETS 控制台（讯飞 E 听说 · 本地作业工具）
 
+> 仓库：<https://github.com/liushuchang-2012/ets-console> · v1.0.0
+
 把「讯飞 E 听说」PC 客户端的作业列表搬进浏览器：查看作业、看结构、提交、改学习时长。
 核心是一个零依赖 CLI（`src/ets.js`）加一个零依赖本地 Web 控制台（`webui/`）。
 
