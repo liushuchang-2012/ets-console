@@ -104,6 +104,8 @@ ets-tool/
 │  ├─ server.js          # 本地 HTTP 服务（0 依赖），把 CLI 包成 JSON API
 │  └─ index.html         # 单文件前端（内联 CSS/JS，不联网）
 ├─ docs/PROTOCOL.md      # 协议与风控实测记录
+├─ docs/PUBLISH.md       # 发布到 GitHub 的步骤
+├─ 发布到GitHub.bat      # 一键推送脚本（需先建空仓库）
 └─ screenshot/           # 界面截图
 ```
 
