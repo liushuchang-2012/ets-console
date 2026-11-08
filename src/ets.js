@@ -494,6 +494,48 @@ class Ets {
     return this.unwrap(r, "批量提交 item " + meta.item_id);
   }
 
+  /* 试卷型（听说专项 / fc=36 等）：plat_data 为空，按 set + entity 逐题上报。
+     与朗读题的区别：不带 item_*，必须带 first_column_id / question_type_score / rate_scale，
+     set_id 用 "100" + homework_id，每题的 order 从 1 开始，score_detail.category = simple_expression。 */
+  async submitPaperOne(id, rid, setKey, entityId, qScore, pct, soft, fc) {
+    const full = Number(qScore) || 0;
+    let score = full;
+    if (pct < 100) score = Math.round(full * pct) / 100;
+    if (soft) score = Math.max(0, Math.round((score - Math.random() * 0.02) * 100) / 100);
+    const det = {
+      accuracy_score: "0", fluency_score: "0", integrity_score: "0", standard_score: "0",
+      total_score: score, real_score: score, category: "simple_expression", rate_scale: 0,
+    };
+    const params = {
+      resource_id: String(rid), real_score: score, score: score,
+      set_id: setKey, entity_id: String(entityId), order: "1",
+      mistake_id: "", upload_file_id: "", upload_file_url: "", spx_file_url: "",
+      mark_trace_id: "", detail_file_id: "", detail_file_url: "",
+      score_detail: JSON.stringify(det),
+      exam_id: null, homework_id: String(id),
+      first_column_id: String(fc || "36"), question_type_score: String(full),
+      rate_scale: 0, client_time: nowStr(), mark_service: 1, version: "2",
+    };
+    const r = await this.api("m/audio/sync-v2", params);
+    return this.unwrap(r, "试卷提交 entity " + entityId);
+  }
+
+  /* 试卷结构里的题目实体（audio / dub / composition / combination 四类） */
+  static paperEntities(struct) {
+    const out = [];
+    for (const k of ["audio", "dub", "composition", "combination"]) {
+      for (const s of (struct && struct[k]) || []) {
+        for (const c of s.contents || []) {
+          out.push({
+            entity_id: String(c.real_id), code_id: c.code_id,
+            set_id: String(s.set_id), name: c.first_type_name || s.set_name || "",
+          });
+        }
+      }
+    }
+    return out;
+  }
+
   async submitWords(id, rid, words, pct) {
     const score = pct >= 100 ? 100 : Math.round(pct);
     const detail = words.map((q) => ({
@@ -554,6 +596,7 @@ function normRow(h) {
     use_time: h.use_time, status: h.status, expire: h.expire, overtime: h.overtime,
     item_id: h.item_id, item_type: h.item_type, total_point: h.total_point,
     pass_line: h.pass_line, create_time: h.create_time,
+    first_column_id: h.first_column_id || (h.first_column_id === 0 ? 0 : ""),
     plat_data: typeof h.plat_data === "string" ? safeParse(h.plat_data) : h.plat_data,
   };
 }
@@ -708,16 +751,21 @@ async function doOne(ets, id, rid, opt) {
       }
     }
   } else {
-    console.log("  [警告] 作业行里没有 plat_data（item_id/item_code），改用旧协议 set/entity 试一次");
-    for (const s of it.sets) {
-      for (const item of s.items) {
-        const meta = { item_id: "", item_code: "", item_type: 1 };
-        if (opt.dry) { console.log("  [dry] set=" + s.set_id + " entity=" + item.entity_id + " order=" + item.order); continue; }
-        const r = await ets.submitChapterOne(id, rid, meta, item.order, 5, opt.pct, opt.soft);
-        if (r.code !== 0) { console.log("  [失败] code=" + r.code + " msg=" + (r.msg || "")); continue; }
-        console.log("  [提交] set=" + s.set_id + " entity=" + item.entity_id + " → code " + r.code + " avg=" + ((r.body || {}).avg_point));
-        submitted++;
-      }
+    // 试卷型（听说专项等）：作业行没有 plat_data，按 set + entity 逐题上报
+    const ents = Ets.paperEntities(it.struct);
+    const fc = String((row && row.first_column_id) || "36");
+    const total = Number((row && row.total_point) || 0) || ents.length * 2;
+    const per = ents.length ? Math.round((total / ents.length) * 100) / 100 : 0;
+    const setKey = "100" + String(id);
+    console.log("  [试卷型] " + ents.length + " 题，满分 " + total + "（每题 " + per + " 分），set=" + setKey + " fc=" + fc);
+    if (!ents.length) console.log("  [警告] 试卷结构里没找到题目实体，先看 show 的输出");
+    for (const e of ents) {
+      if (opt.dry) { console.log("  [dry] entity=" + e.entity_id + " (" + e.name + ") → real_score=" + per + " (" + opt.pct + "%)"); continue; }
+      const r = await ets.submitPaperOne(id, rid, setKey, e.entity_id, per, opt.pct, opt.soft, fc);
+      const b = r.body || {};
+      console.log("  [提交] entity=" + e.entity_id + " → code " + r.code + " point=" + b.point +
+        " complete=" + b.complete + " is_update=" + b.is_update);
+      if (r.code === 0) submitted++;
     }
   }
   if (opt.dry) { console.log("  [dry] 未提交"); return { dry: true }; }

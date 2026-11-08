@@ -74,6 +74,32 @@ cef.message.sendMessage(guid, "EtsHelper", "encode_api_body_v2", JSON.stringify(
 
 `detail[]` 每项 `{word_id, question_id, score_rate, score_detail, client_time}`，服务端按客户端上报值汇总。
 
+## 5.4 试卷型（听说专项 / first_column_id = 36）
+
+这类作业的行里 `plat_data` 是**空的**，提交走 `set + entity` 而不是 `item`：
+
+```json
+{"resource_id":"55","real_score":2,"score":2,
+ "set_id":"100<homework_id>","entity_id":"944075","order":"1",
+ "score_detail":"{\"accuracy_score\":\"0\",\"fluency_score\":\"0\",\"integrity_score\":\"0\",\"standard_score\":\"0\",\"total_score\":2,\"real_score\":2,\"category\":\"simple_expression\",\"rate_scale\":0}",
+ "homework_id":"111369333","first_column_id":"36","question_type_score":"2",
+ "rate_scale":0,"mark_service":1,"version":"2","client_time":"YYYY-MM-DD HH:mm:ss"}
+```
+
+要点（都是实测踩出来的）：
+
+| 字段 | 值 |
+| --- | --- |
+| `set_id` | **`100` + homework_id**，不是 struct 里的 `set_id` |
+| `order` | 每题都是 **`"1"`**（order 是"该题内部第几问"，不是第几题） |
+| `question_type_score` | 该题满分（字符串），如 `"2"` |
+| `first_column_id` | 作业行里的 `first_column_id`（试卷型多为 `36`） |
+| `score_detail.category` | `simple_expression` |
+| 不要带 | `item_id / item_code / item_type / auto_submit / correct / graduation / source / seq_id` |
+
+每题从 `m/homework/struct` 的 `audio[].contents[].real_id` 取 `entity_id`，题目数 = 实体数。
+音频不是必需的（`upload_file_url` 可以留空，服务端照样 `code 0`）。
+
 ## 6. 时长
 
 `m/homework/set-use-time { homework_id, use_time, version:2 }` —— 客户端上报，立即生效，无 clamp。
